@@ -319,6 +319,42 @@ void test_hard_links() {
     }
 }
 
+void test_excluded_directories() {
+    TempDir directory;
+    create_directory(directory.path() + L"\\keep");
+    create_directory(directory.path() + L"\\Skip");
+    create_directory(directory.path() + L"\\Skip\\nested");
+    write_file(directory.path() + L"\\keep\\a.txt", "hello");
+    write_file(directory.path() + L"\\keep\\b.txt", "hello");
+    write_file(directory.path() + L"\\Skip\\a.txt", "hello");
+    write_file(directory.path() + L"\\Skip\\b.txt", "hello");
+    write_file(directory.path() + L"\\Skip\\nested\\c.txt", "hello");
+
+    dupfind::Options options;
+    options.root = directory.path();
+    options.threads = 1;
+    options.excluded_directory_names = {L"skip"};
+
+    const dupfind::Result result = dupfind::find_duplicates(options);
+    CHECK_U64(result.stats.files_scanned, 2);
+    CHECK_SIZE(result.groups.size(), 1);
+    CHECK_U64(result.stats.duplicate_files, 1);
+    CHECK_U64(result.stats.reclaimable_bytes, 5);
+    if (!result.groups.empty()) {
+        for (const std::wstring& file : result.groups.front().files) {
+            CHECK(file.find(directory.path() + L"\\keep") == 0);
+        }
+    }
+
+    options.excluded_directory_names.clear();
+    const dupfind::Result all = dupfind::find_duplicates(options);
+    CHECK_U64(all.stats.files_scanned, 5);
+    CHECK_SIZE(all.groups.size(), 1);
+    if (!all.groups.empty()) {
+        CHECK_SIZE(all.groups.front().files.size(), 5);
+    }
+}
+
 void test_unicode_paths() {
     TempDir directory;
     const std::wstring sub = directory.path() + L"\\папка";
@@ -361,6 +397,7 @@ int main() {
         test_basic();
         test_filters();
         test_hard_links();
+        test_excluded_directories();
         test_unicode_paths();
         test_missing_root();
     } catch (const std::exception& error) {

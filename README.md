@@ -7,6 +7,7 @@ The project is deliberately WinAPI-first. It was written as a portfolio piece fo
 ## Features
 
 - Recursive directory scan through `FindFirstFileW` / `FindNextFileW`.
+- Directory exclusion by name with repeatable `--exclude-dir` (case-insensitive on Windows).
 - Size-first filtering: a file with a unique size cannot have a duplicate and is never read.
 - SHA-256 through Windows CNG (`BCryptOpenAlgorithmProvider`, `BCryptHashData`, `BCryptFinishHash`).
 - Parallel hashing with `std::thread` and an atomic work counter.
@@ -44,6 +45,7 @@ Options:
   --threads N        Worker threads; 0 = hardware concurrency (default: 0)
   --min-size BYTES   Ignore files smaller than BYTES (default: 0)
   --include-empty    Include zero-byte files (skipped by default)
+  --exclude-dir NAME Skip a directory by name (repeatable, case-insensitive)
   -h, --help         Show this help
 ```
 
@@ -52,6 +54,7 @@ Examples:
 ```powershell
 dupfind C:\Users\me\Downloads
 dupfind D:\Photos --threads 8 --min-size 1048576
+dupfind C:\Project --exclude-dir .git --exclude-dir node_modules
 ```
 
 Example output:
@@ -95,7 +98,7 @@ group by digest  ->  skip hard links  ->  byte-by-byte verification
 console report
 ```
 
-1. **Scan.** The walk starts with `FindFirstFileW(directory\*)`. Directories are visited recursively; reparse points (symlinks and junctions) are skipped so a cycle cannot make the scan infinite.
+1. **Scan.** The walk starts with `FindFirstFileW(directory\*)`. Directories are visited recursively; reparse points (symlinks and junctions) are skipped so a cycle cannot make the scan infinite. Directory names passed through `--exclude-dir` are not entered.
 2. **Size filter.** Files are grouped by size. A unique size means the file cannot have a duplicate, so it is never opened.
 3. **Hash candidates.** Only files sharing a size are hashed. `BCryptOpenAlgorithmProvider(BCRYPT_SHA256_ALGORITHM)` and `BCryptHashData` compute SHA-256 in 64 KiB chunks.
 4. **Parallelize.** A fixed number of `std::thread` workers pulls candidate indices from `std::atomic<std::size_t>`. Each worker writes only to its own slot; the main thread joins before reading the results.
@@ -137,6 +140,7 @@ The test suite covers:
 - Known SHA-256 vectors (`"abc"`, `"hello"`, an empty file).
 - Byte comparison: equal files, different files, empty files, missing files.
 - Duplicate detection, minimum-size and empty-file filters.
+- Excluded directory names, including case-insensitive matching.
 - Hard links: they must not be reported as duplicates.
 - Unicode directory and file names.
 - A missing root: warning and error accounting without a crash.
@@ -148,3 +152,4 @@ The test suite covers:
 - Files modified during the scan are not locked; a size or digest may reflect different moments in time.
 - The utility scans on demand. A persistent index would be the next step for repeated scans of large trees.
 - `--min-size` takes plain bytes; there is no `1M` suffix parser in this version.
+- `--exclude-dir` matches directory names, not full paths; the root itself is always scanned.

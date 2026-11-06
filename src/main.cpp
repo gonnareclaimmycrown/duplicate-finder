@@ -36,10 +36,12 @@ void print_usage() {
         << "  --threads N        Worker threads; 0 = hardware concurrency (default: 0)\n"
         << "  --min-size BYTES   Ignore files smaller than BYTES (default: 0)\n"
         << "  --include-empty    Include zero-byte files (skipped by default)\n"
+        << "  --exclude-dir NAME Skip a directory by name (repeatable, case-insensitive)\n"
         << "  -h, --help         Show this help\n\n"
         << "Examples:\n"
         << "  dupfind C:\\Users\\me\\Downloads\n"
-        << "  dupfind D:\\Photos --threads 8 --min-size 1048576\n";
+        << "  dupfind D:\\Photos --threads 8 --min-size 1048576\n"
+        << "  dupfind C:\\Project --exclude-dir .git --exclude-dir node_modules\n";
 }
 
 bool parse_unsigned(const std::wstring& text, unsigned& value) {
@@ -115,6 +117,19 @@ bool parse_args(const std::vector<std::wstring>& args, CliOptions& cli, std::wst
                 return false;
             }
             cli.find.min_size = value;
+            continue;
+        }
+        if (!end_of_options && argument == L"--exclude-dir") {
+            if (index + 1 >= args.size()) {
+                error = L"missing value for --exclude-dir";
+                return false;
+            }
+            const std::wstring& value = args[++index];
+            if (value.empty()) {
+                error = L"empty --exclude-dir value";
+                return false;
+            }
+            cli.find.excluded_directory_names.push_back(value);
             continue;
         }
         if (!end_of_options && !argument.empty() && argument.front() == L'-') {

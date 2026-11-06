@@ -11,6 +11,7 @@ struct Options {
     std::uint64_t min_size = 0;
     bool include_empty = false;
     unsigned threads = 0; // 0 = hardware concurrency
+    std::vector<std::wstring> excluded_directory_names;
 };
 
 struct DuplicateGroup {
