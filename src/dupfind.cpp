@@ -14,9 +14,11 @@
 #include <chrono>
 #include <cstring>
 #include <cwchar>
+#include <cwctype>
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -145,7 +147,15 @@ std::wstring join_path(const std::wstring& directory, const wchar_t* name) {
     return path;
 }
 
+std::wstring lowercase_name(std::wstring text) {
+    for (wchar_t& character : text) {
+        character = static_cast<wchar_t>(std::towlower(character));
+    }
+    return text;
+}
+
 void scan_directory(const std::wstring& directory, const Options& options,
+                    const std::unordered_set<std::wstring>& excluded_directories,
                     Result& result, std::vector<FileEntry>& files) {
     const std::wstring pattern = join_path(directory, L"*");
     WIN32_FIND_DATAW data{};
@@ -169,7 +179,12 @@ void scan_directory(const std::wstring& directory, const Options& options,
             // Do not follow junctions and directory symlinks: this keeps the
             // walk finite and avoids counting the same file through two paths.
             if ((data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0) {
-                scan_directory(path, options, result, files);
+                const bool excluded = !excluded_directories.empty()
+                    && excluded_directories.find(lowercase_name(data.cFileName))
+                        != excluded_directories.end();
+                if (!excluded) {
+                    scan_directory(path, options, excluded_directories, result, files);
+                }
             }
             continue;
         }
@@ -359,8 +374,14 @@ Result find_duplicates(const Options& options) {
         return result;
     }
 
+    std::unordered_set<std::wstring> excluded_directories;
+    excluded_directories.reserve(options.excluded_directory_names.size());
+    for (const std::wstring& name : options.excluded_directory_names) {
+        excluded_directories.insert(lowercase_name(name));
+    }
+
     std::vector<FileEntry> files;
-    scan_directory(options.root, options, result, files);
+    scan_directory(options.root, options, excluded_directories, result, files);
 
     // Files with a unique size cannot have duplicates, so they are never read.
     std::unordered_map<std::uint64_t, std::vector<std::size_t>> by_size;
