@@ -23,6 +23,18 @@ else()
     target_compile_options(dupfind PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(dupfind_tests tests/test_main.cpp)
+    target_link_libraries(dupfind_tests PRIVATE dupfind_core)
+    if(MSVC)
+        target_compile_options(dupfind_tests PRIVATE /W4 /permissive- /utf-8)
+    else()
+        target_compile_options(dupfind_tests PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+    add_test(NAME dupfind_tests COMMAND dupfind_tests)
+endif()
+
 install(TARGETS dupfind RUNTIME DESTINATION bin)
 
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT dupfind)
