@@ -1,5 +1,7 @@
 # dupfind
 
+[![Windows build](https://github.com/gonnareclaimmycrown/duplicate-finder/actions/workflows/windows.yml/badge.svg)](https://github.com/gonnareclaimmycrown/duplicate-finder/actions/workflows/windows.yml)
+
 `dupfind` is a small **Windows console utility** that finds duplicate files by content. There is no GUI: it takes a directory, walks it with `FindFirstFileW` / `FindNextFileW`, and prints groups of files with identical bytes.
 
 The project is deliberately WinAPI-first. It was written as a portfolio piece for a Junior C++ Developer (Windows) role and is small enough to read in one sitting.
